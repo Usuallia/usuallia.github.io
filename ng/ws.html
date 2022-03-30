@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <script src="./js/lib/vue.js"></script>
+  <script src="./js/lib/axios.js"></script>
+  <script src="./js/lib/elementUI.js"></script>
+  <script src="./js/lib/stomp.js"></script>
+  <script src="./js/rem_resize.js"></script>
+  <link rel="stylesheet" href="./css/lib/elementUI.css">
+  <link rel="stylesheet" href="./css/chat.css">
+  <link rel="stylesheet" href="./css/public.css">
+</head>
+<body>
+<div id="vm">
+    <el-form>
+
+      <el-form-item>
+        <el-input v-model="sendmsg.msg" placeholder="你想给对方的信息" type="textarea" @keydown.enter.prevent.native="sendSimple"></el-input>
+      </el-form-item>
+
+      <el-form-item>
+        <el-button @click="sendSimple">发送</el-button>
+      </el-form-item>
+
+    </el-form>
+
+  </div>
+
+
+
+</div>
+
+</body>
+<script>
+  // 123.56.246.243
+  // localhost
+  const IP = 'localhost:8080'
+  const IPort = 'http://' + IP
+  const wspath = 'ws://' + IP + '/chat'
+  // const IP = '192.168.2.100'
+  // const IPort = 'http://' + IP + '/api'
+  // const wsIP = 'ws://' + IP
+  
+  var vm = new Vue({
+    el: '#vm',
+    data() {
+      return {
+        sendmsg: {
+          to: '',
+          msg: '',
+          local: '12'
+        },
+        websocket: null,
+        socket: null
+      }
+    },
+    created() {
+      this.connectChatServer()
+    },
+    methods: {
+      handleWebsocketMsg(msg){
+        let msg_arr = msg.split('|^$|')
+        let status = msg_arr[0]
+        let content = msg_arr[1]
+
+        this.$message.success(status)
+        console.log(content)
+      },
+      connectChatServer() {
+        if(this.websocket){
+          this.websocket.close()
+        }
+        this.websocket = new WebSocket(wspath)
+        let websocket = this.websocket
+
+        websocket.sendJSON = function (obj) {
+          websocket.send(JSON.stringify(obj))
+        }
+
+        console.log(websocket)
+        websocket.onopen = () => {
+          console.log("ws连接打开")
+          this.logined = true
+          this.$message.success("登陆成功")
+        }
+        websocket.onclose = function(error) {
+          console.log("ws连接关闭")
+          console.log(error)
+        }
+
+        websocket.onerror = function() {
+          console.log("错误！连接通道关闭")
+        }
+
+        websocket.onmessage = (event) => {
+          let msg = event.data
+          this.handleWebsocketMsg(msg)
+        }
+      },
+      sendTo() {
+        if(!this.websocket){
+          this.$message.warning('请先登陆')
+          return
+        }
+        this.websocket.sendJSON(this.sendmsg)
+        this.sendmsg.msg = ''
+      },
+      sendSimple(event) {
+        if(!this.websocket){
+          this.$message.warning('请先登陆')
+          return
+        }
+        this.websocket.send(this.sendmsg.msg)
+        this.sendmsg.msg = ''
+      }
+    }
+  })
+
+</script>
+</html>

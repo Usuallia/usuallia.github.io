@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <script src="./js/lib/vue.js"></script>
+  <script src="./js/lib/axios.js"></script>
+  <script src="./js/lib/elementUI.js"></script>
+  <script src="./js/lib/stomp-min.js"></script>
+  <script src="./js/lib/sockjs.js"></script>
+  <script src="./js/rem_resize.js"></script>
+  <link rel="stylesheet" href="./css/lib/elementUI.css">
+  <link rel="stylesheet" href="./css/chat.css">
+  <link rel="stylesheet" href="./css/public.css">
+</head>
+<body>
+<div id="vm">
+    <el-form>
+      <el-form-item>
+        <el-input v-model="sub.destination" placeholder="订阅地址"></el-input>
+      </el-form-item>
+      <el-form-item>
+        <el-button @click="subscribe">订阅</el-button>
+      </el-form-item>
+
+
+      <el-form-item>
+        <el-input v-model="sendmsg.destination" placeholder="目标地址"></el-input>
+      </el-form-item>
+
+      <el-form-item>
+        <el-input v-model="sendmsg.msg" placeholder="你想给对方的信息" type="textarea" @keydown.enter.prevent.native="sendSimple"></el-input>
+      </el-form-item>
+
+      
+
+    </el-form>
+
+  </div>
+
+
+
+</div>
+
+</body>
+<script>
+  // 123.56.246.243
+  // localhost
+  const IP = 'localhost:8080'
+  const IPort = 'http://' + IP
+  const wspath = 'ws://' + IP + '/chat'
+  // const IP = '192.168.2.100'
+  // const IPort = 'http://' + IP + '/api'
+  // const wsIP = 'ws://' + IP
+  
+  var vm = new Vue({
+    el: '#vm',
+    data() {
+      return {
+        sub: {
+          destination: '/a/133'
+        },
+        sendmsg: {
+          destination: '/test/133',
+          to: '2',
+          msg: '3',
+          local: '12'
+        },
+        websocket: null,
+        client: null
+      }
+    },
+    created() {
+      this.connectChatServer()
+    },
+    methods: {
+      handleWebsocketMsg(msg){
+        let msg_arr = msg.split('|^$|')
+        let status = msg_arr[0]
+        let content = msg_arr[1]
+
+        this.$message.success(status)
+        console.log(content)
+      },
+      connectChatServer() {
+        if(this.websocket){
+          this.websocket.close()
+        }
+        this.websocket = new WebSocket(wspath)
+        let websocket = this.websocket
+        let client = window.client = this.client = Stomp.over(websocket)
+        client.connect({}, function(frame) {
+            // console.log('Connected: ' + frame);
+        });
+
+
+        console.log(websocket)
+        // websocket.onopen = () => {
+        //   console.log("ws连接打开")
+        //   this.logined = true
+        //   this.$message.success("登陆成功")
+        // }
+        // websocket.onclose = function(error) {
+        //   console.log("ws连接关闭")
+        //   console.log(error)
+        // }
+
+        // websocket.onerror = function() {
+        //   console.log("错误！连接通道关闭")
+        // }
+
+        websocket.onmessage = (event) => {
+          console.log("raw:", event.data);
+        }
+      },
+      sendSimple(event) {
+        let {destination, msg} = this.sendmsg
+        this.client.send(destination, {credential: 'fast'}, JSON.stringify(this.sendmsg))
+        this.sendmsg.msg = ''
+      },
+      subscribe() {
+        this.client.subscribe(this.sub.destination, (eve) => {
+          console.log(eve);
+        })
+      }
+    }
+  })
+
+</script>
+</html>

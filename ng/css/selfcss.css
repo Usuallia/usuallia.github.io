@@ -1,0 +1,25 @@
+.self-container {
+    width: 1140px;
+    padding-right: 15px;
+    padding-left: 15px;
+    margin-right: auto;
+    margin-left: auto;
+}
+
+.self-enter, .self-leave-to{
+    opacity: 0;
+    transform: translateX(150px);
+}
+
+.self-enter-active{
+    transition: all .8s ease;
+}
+
+.self-leave-active{
+    position: absolute;
+    transition: all .8s ease;
+}
+
+.self-move{
+    transition: all .8s ease;
+}

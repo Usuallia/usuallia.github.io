@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Max</title>
+  <script src="./js/lib/vue3.2.31.global.js"></script>
+</head>
+<style>
+  .same-w {
+    margin: 0 auto; 
+    width: fit-content;
+  }
+  .w800 {
+    width: 500px;
+  }
+  .float-w {
+    height: 0px;
+    float: right;
+    position: relative;
+    left: 120px;
+    top: 60px;
+    display: flex;
+    flex-direction: column;
+  }
+  .float-butt {
+    display: block;
+    position: relative;
+    margin-bottom: 8px;
+    width: 90px;
+  }
+</style>
+<body>
+  <div id="vm">
+    
+    <div class="same-w" style="margin-top: 80px;">
+      <div class="float-w">
+        <button class="float-butt" @click="serial_one='',serial_two=''">清空</button>
+        <button v-for="(s, i) in serial" ::key="i" class="float-butt" @click="serial_one=s[0],serial_two=s[1]">测试用例{{i+1}}</button>
+      </div>
+      <div class="same-w" style="margin-bottom: 10px;">
+        <input v-model="serial_one" class="w800" placeholder="字符串1">
+      </div>
+      <div class="same-w" style="margin-bottom:20px;">
+        <input v-model="serial_two" class="w800" placeholder="字符串2">
+      </div>
+      <div class="same-w">
+        <div>
+          {{ line == 0 ? '无公共子序列' : `一共有${line}个结果` }}
+        </div>
+        <textarea :value="res" class="w800" style="height: 500px;"></textarea>
+      </div>
+    </div>
+  </div>
+</body>
+
+<script>
+  const app = Vue.createApp({
+    data() {
+      return {
+        serial_one: '',
+        serial_two: '',
+        serial: [
+          ['abcdef', 'badcfe'],
+          ['cdefgb2a1', 'gbfgefdecd1a2b'],
+          ['wxvusrabcdefghijklmnopq12345', 'xwuvrspqopnomnkljkijhighfgefdecdbcab135'],
+          ['axhjk75bdl', 'xajkhjb57lkd']
+        ],
+        valid: true,
+        line: 0
+      }
+    },
+    methods: {
+      dostr(a, b) {
+        let so = a.split("")
+        let st = b.split("")
+        return this.doSolution(so, st)
+      },
+      doSolution(a, b) {
+        let len1 = a.length, len2 = b.length
+        if(len1 == 0 || len2 == 0) {
+          this.line = 0
+          return ''
+        }
+        let dp = Array(len1+1)
+        for(let i=0; i<len1+1; i++) {
+          dp[i] = Array(len2+1).fill(0)
+        }
+        for(let i=1; i<=len1; i++) {
+          for(let j=1; j<=len2; j++) {
+            if(a[i-1] == b[j-1]) {
+              dp[i][j] = dp[i-1][j-1] + 1
+            }else{
+              dp[i][j] = Math.max(dp[i][j-1], dp[i-1][j])
+            }
+
+          }
+        }
+        let store = []
+        let res = []
+        this.search(a, b, len1, len2, dp, store, res)
+        // console.log(dp)
+        let resMap = res.map(list => list.join(''))
+        this.line = resMap.length
+        return resMap.join('\n')
+      },
+      search(s1, s2, len1, len2, dp, store, res) {
+        if(len1 == 0 || len2 == 0 || dp[len1][len2] == 0) {
+          let cp = [...store]
+          res.push(cp.reverse())
+          return
+        }
+        let search = this.search
+        let i = len1, j = len2
+        while(i >= 0) {
+          while(j >= 0) {
+            if(dp[i][j] == dp[i][j-1] + 1) {
+              if(dp[i][j] == dp[i-1][j] + 1) {
+                store.push(s1[i-1])
+                search(s1, s2, i-1, j-1, dp, store, res)
+                store.pop()
+              }
+              break
+            }
+            j--;
+          }
+          j = len2
+          if(dp[i][j] == dp[i-1][j] + 1) {
+            break;
+          }
+          i--;          
+        }
+      },
+    },
+    computed: {
+      res (){
+        let {dostr, serial_one, serial_two} = this
+        return dostr(serial_one, serial_two)
+      }
+    }
+  })
+
+  app.mount("#vm")
+</script>
+
+</html>
