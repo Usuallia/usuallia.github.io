@@ -102,7 +102,7 @@
         let res = []
         this.search(a, b, len1, len2, dp, store, res)
         // console.log(dp)
-        let resMap = res.map(list => list.join(''))
+        let resMap = res.map(list => list.join('')).filter(str => str != '')
         this.line = resMap.length
         return resMap.join('\n')
       },
