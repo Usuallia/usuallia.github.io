@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh_CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Max</title>
+  <script src="./js/lib/vue3.2.31.global.js"></script>
+</head>
+<style>
+  .same-w {
+    margin: 0 auto; 
+    width: fit-content;
+  }
+  .w800 {
+    width: 500px;
+  }
+  .float-w {
+    height: 0px;
+    float: right;
+    position: relative;
+    left: 120px;
+    top: 60px;
+    display: flex;
+    flex-direction: column;
+  }
+  .float-butt {
+    display: block;
+    position: relative;
+    margin-bottom: 8px;
+    width: 90px;
+  }
+
+
+</style>
+<body>
+  <div id="vm">
+    <div class="same-w" style="margin-top: 10px;">
+      <div class="float-w">
+        <button class="float-butt" @click="clear">清空</button>
+        <button v-for="(s, i) in pis" ::key="i" class="float-butt" @click="pi=pis[i], enter()">测试用例{{i+1}}</button>
+      </div>
+      <div class="same-w" style="margin-bottom: 10px;">
+        <input v-model="pi" class="w800" placeholder="请输入1到n的连续自然数序列，敲回车键执行" @keydown.enter="enter">
+      </div>
+      <div class="same-w">
+        <div>
+          {{ count == 0 ? '' : `一共有${count}个结果，当前显示第${index+1}个` }}
+          <div style="display: inline-block; width: 40px;">
+            <a href="#" v-if="index!=0" @click="index--">prev</a>
+          </div>
+          <div style="display: inline-block; width: 40px;">
+            <a href="#" v-if="index < count-1" @click="index++">next</a>
+          </div>
+
+        </div>
+        <canvas :style="cStyle" style="display: block; margin-top: 10px; margin-bottom: 10px;" v-show="count!= 0"></canvas>
+        <textarea :value="res" class="w800" style="height: 300px;" v-show="count!= 0"></textarea>
+      </div>
+    </div>
+  </div>
+</body>
+
+<script>
+  const app = Vue.createApp({
+    data() {
+      return {
+        pi: '',
+        pis:[
+          '2,1,4,3,6,5,9,8,7,10',
+          '8,7,4,2,5,1,9,3,10,6',
+          '4,5,2,3,1,9,10,11,6,7,8'
+        ],
+        count: 0,
+        index: 0,
+        points: [],
+        res: '',
+        cs: {
+          width: 500,
+          height: 300
+        }
+      }
+    },
+    methods: {
+      toArray(aft) {
+        return aft.split(',').map(s => Number.parseInt(s))
+      },
+      enter() {
+        let parr = this.parr
+        console.log(parr);
+        if(parr.some(isNaN)) {
+          alert("输入的格式不合法")
+          return
+        }
+        if(parr.length < 8) {
+          alert("数字个数不能小于8")
+          return
+        }
+        if(parr.length > 20) {
+          alert("数字个数不能大于20")
+        }
+        parr = parr.map(k => k-1)
+        let res = this.solution(parr)
+
+        this.res = res.map(inter => inter.map(a => `(${a[0]+1},${a[1]+1})`).join(', ')).join('\n')
+        this.points = res
+        this.count = res.length
+        this.index = 0
+        this.refresh()
+      },
+      solution(parr) {
+        let n = parr.length
+        let dp = Array(n).fill(null).map(() => Array(n).fill(0))
+        for(let i=0; i<n; i++) {
+          dp[0][i] = i < parr[0] ? 0 : 1
+        }
+        for(let i=1; i<n; i++) {
+          for(let j=0; j<n; j++) {
+            if(j < parr[i]) {
+              dp[i][j] = dp[i-1][j];
+            }else {
+              dp[i][j] = Math.max(parr[i] == 0 ? 1 : dp[i-1][parr[i]-1] + 1, dp[i-1][j])
+            }
+          }
+        }
+        let res = []
+        // console.log(dp)
+        this.traceBack(parr, dp, n-1, n-1, res, [])
+        return res
+      },
+      traceBack(parr, dp, i, j, res, block) {
+        let traceBack = this.traceBack
+        if(i == 0) {
+          if(j >= parr[i]) {
+            res.push([...block, [i, j]])
+          }else {
+            res.push([...block])
+          }
+          return
+        }
+        if(j == -1) {
+          res.push([...block])
+          return
+        }
+
+        let cmp = (parr[i] == 0) ? 1 : dp[i-1][parr[i]-1] + 1
+        if(dp[i][j] == dp[i-1][j]) {
+          traceBack(parr, dp, i-1, j, res, block)
+        }
+        if(dp[i][j] == cmp) {
+          block.push([i, parr[i]])
+          traceBack(parr, dp, i-1, parr[i]-1, res, block)
+          block.pop()
+        }
+        
+      },
+      draw(n, points){
+        let {width, height} = this.cs
+        let r = 2, step = width / n - r
+        let canvas = document.querySelector("canvas")
+        let ctx = canvas.getContext('2d')
+        canvas.height = height
+        canvas.width = width
+        const fixup = (index) => {
+          return [r+step*(index+0.5), r*1.5]
+        }
+        const fixdown = (index) => {
+          return [r+step*(index+0.5), height - r*1.5]
+        }
+        with(ctx) {
+          for(let i=0; i<n; i++) {
+            let up = fixup(i), down = fixdown(i)
+            beginPath()
+            arc(...up, r, 0, 360)
+            fill()
+            
+            beginPath()
+            arc(...down, r, 0, 360)
+            fill()
+          }
+          for(let point of points) {
+            beginPath()
+            moveTo(...fixup(point[0]))
+            lineTo(...fixdown(point[1]))
+            stroke()
+          }
+
+        }
+      },
+      refresh() {
+        with(this) {
+          draw(parr.length, points[index])
+        }
+      },
+      clear() {
+        with(this) {
+          count = 0
+          index = 0
+          pi = ''
+        }
+      }
+    },
+    watch: {
+      index() {
+        this.refresh()
+      }
+    },
+    computed: {
+      parr() {
+        return this.toArray(this.pi)
+      },
+      cStyle() {
+        return {
+          height: this.cs.height + 'px',
+          width: this.cs.width + 'px'
+        }
+      }
+    }
+  })
+
+  app.mount("#vm")
+</script>
+
+</html>
