@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh_CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TREE</title>
+  <script src="./js/lib/vue3.2.31.global.js"></script>
+  <script src="./js/lib/axios.js"></script>
+  <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.3.2/echarts.js"></script>
+</head>
+<style>
+  .same-w {
+    margin: 0 auto; 
+    width: fit-content;
+  }
+  .w800 {
+    width: 500px;
+  }
+  .float-w {
+    height: 0px;
+    float: right;
+    position: relative;
+    left: 120px;
+    top: 60px;
+    display: flex;
+    flex-direction: column;
+  }
+  .float-butt {
+    display: block;
+    position: relative;
+    margin-bottom: 8px;
+    width: 90px;
+  }
+</style>
+<body>
+  <div id="vm">
+    
+    <div class="same-w" style="margin-top: 80px;">
+      <div class="float-w">
+        <button v-for="(s, i) in history" ::key="i" class="float-butt" @click="index = i; refresh(); getTree()">测试用例{{i+1}}</button>
+        <button class="float-butt" @click="getTree">do it</button>
+      </div>
+      <div class="same-w" style="margin-bottom: 10px;">
+        <input v-model="arr" class="w800" placeholder="输入节点数组">
+      </div>
+      <div class="same-w" style="margin-bottom:10px;">
+        <input v-model="a" class="w800" placeholder="输入节点概率">
+      </div>
+      <div class="same-w" style="margin-bottom:20px;">
+        <input v-model="b" class="w800" placeholder="输入间隔概率">
+      </div>
+      <div class="same-w">
+        <div ref="treeDom" class="w800 treeG" style="height: 500px;"></div>
+      </div>
+    </div>
+  </div>
+</body>
+
+<script>
+  axios.defaults.baseURL= 'http://106.52.42.56:8080'
+  const app = Vue.createApp({
+    data() {
+      return {
+        arr: '',
+        a: '',
+        b: '',
+        index: -1,
+        history: [
+          {
+            arr: '2, 4, 6, 8, 10',
+            a: '0.1, 0.2, 0.05, 0.15, 0.2',
+            b: '0.05, 0.05, 0.06, 0.04, 0.08, 0.02',
+          },
+          {
+            arr: '1, 2, 3, 4, 5',
+            a: '0.15, 0.10, 0.05, 0.10, 0.20',
+            b: '0.05, 0.10, 0.05, 0.05, 0.05, 0.10',
+          },
+          {
+            arr: '2,10',
+            a: '0.5,0.3',
+            b: '0.1,0.05,0.05',
+          }
+        ],
+        valid: true,
+        line: 0,
+        tree: {},
+        treeDom: null,
+        attr: {},
+        remain: 2 // 小数点保留位数
+      }
+    },
+
+    methods: {
+      refresh() {
+        let {index, history} = this
+        this.arr = history[index].arr
+        this.a = history[index].a
+        this.b = history[index].b
+      },
+      treeAdapter(data, param, level=1, index=0) {
+        if(data == null) {
+          return {
+            name: `(${param.arr[index-1] || '-∞'}, ${param.arr[index] || '+∞'})`,
+            value: param.b[index] * level
+          }
+        }
+        let {treeAdapter} = this
+        let value = data.value
+        let node = {
+          name: param.arr[value],
+          value: param.a[value] * level
+        }
+        let left  = treeAdapter(data.left , param, level+1, value)
+        let right = treeAdapter(data.right, param, level+1, value + 1)
+        if(left || right) {
+          node.children = []
+          left  && node.children.push(left)
+          right && node.children.push(right)
+        }
+        return node
+        
+      },
+      calSum(tree) {
+        if(!tree) return 0
+        let sum = tree.value
+        if(!tree.children) {
+          return sum
+        }
+        for(child of tree.children) {
+          sum += this.calSum(child)
+        }
+        return sum
+      },
+      getTree() {
+        let {arr, a, b} = this
+        param = {}
+        param.arr = arr.split(',').map(s => s.trim()).map(Number.parseFloat)
+        param.a = a.split(',').map(s => s.trim()).map(Number.parseFloat)
+        param.b = b.split(',').map(s => s.trim()).map(Number.parseFloat)
+        if(param.arr.length != param.a.length || param.a.length + 1 != param.b.length) {
+          alert("输入非法参数")
+          return
+        }
+        this.attr = {...param}
+        param.arr = Array(param.a.length).fill(0).map((v, i) => i)
+        axios({
+          url: 'tree',
+          method: 'post',
+          data: param
+        }).then(({data}) => {
+          this.drawTree(data)
+        })
+      },
+      drawTree(data) {
+        let treeDom = this.treeDom || (this.treeDom = this.$refs.treeDom)
+        let chart = this.chart || (this.chart = echarts.init(treeDom))
+        let tree = this.treeAdapter(data, this.attr)
+        let res = this.calSum(tree)
+        console.log(res)
+        this.tree = tree
+        let option = {
+          title: {
+            text: "树  " + res.toFixed(this.remain)
+          },
+          tooltip: {
+            show: true,
+            formatter: (arg) => {
+              return `路长×概率: ${arg.value.toFixed(this.remain)}`
+            }
+          },
+          series: [
+            {
+              type: 'tree',
+              data: [tree],
+              top: '5%',
+              left: '5%',
+              bottom: '5%',
+              right: '5%',
+              symbolSize: 7,
+              orient: 'vertical',
+              label: {
+                position: 'right',
+                verticalAlign: 'middle',
+                align: 'left'
+              },
+              leaves: {
+                label: {
+                  position: 'left',
+                  verticalAlign: 'middle',
+                  align: 'right'
+                }
+              },
+              
+              expandAndCollapse: false
+            }
+          ]
+        }
+        chart.clear()
+        chart.setOption(option, true)
+      }
+    }
+
+    // computed: {
+    //   arr() {return this.history[this.index].arr},
+    //   a() {return this.history[this.index].a},
+    //   b() {return this.history[this.index].b}
+    // }
+
+  })
+
+  app.mount("#vm")
+</script>
+
+</html>
